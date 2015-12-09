@@ -22,6 +22,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     <script src="../../web-component-tester/browser.js"></script>
     <link rel="import" href="../../iron-test-helpers/iron-test-helpers.html">
     <link rel="import" href="test-overlay.html">
+    <link rel="import" href="test-wrapper.html">
 
   </head>
   <body>
@@ -79,6 +80,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       </template>
     </test-fixture>
 
+    <test-fixture id="restorefocus">
+      <template>
+        <button tabindex="0">Button</button>
+        <test-overlay>
+          <button tabindex="0" autofocus>Click</button>
+        </test-overlay>
+        <test-wrapper>
+          <button tabindex="0" autofocus>Click</button>
+        </test-wrapper>
+      </template>
+    </test-fixture>
+
     <script>
 
       function runAfterOpen(overlay, cb) {
@@ -86,6 +99,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           Polymer.Base.async(cb, 1);
         });
         overlay.open();
+      }
+
+      function runAfterClose(overlay, cb) {
+        overlay.addEventListener('iron-overlay-closed', function() {
+          Polymer.Base.async(cb, 1);
+        });
+        overlay.close();
       }
 
       suite('basic overlay tests', function() {
@@ -280,9 +300,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             overlay.addEventListener('iron-overlay-canceled', function(event) {
               done();
             });
-            fireEvent('keydown', {
-              keyCode: 27
-            }, document);
+            MockInteractions.pressAndReleaseKeyOn(document, 27);
           });
         });
 
@@ -292,9 +310,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               assert.isTrue(event.detail.canceled, 'overlay is canceled');
               done();
             });
-            fireEvent('keydown', {
-              keyCode: 27
-            }, document);
+            MockInteractions.pressAndReleaseKeyOn(document, 27);
           });
         });
 
@@ -316,9 +332,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           runAfterOpen(overlay, function() {
             var spy = sinon.stub();
             overlay.addEventListener('iron-overlay-closed', spy);
-            fireEvent('keydown', {
-              keyCode: 27
-            }, document);
+            MockInteractions.pressAndReleaseKeyOn(document, 27);
             setTimeout(function() {
               assert.isFalse(spy.called, 'iron-overlay-cancel should not fire');
               done();
@@ -510,6 +524,45 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           assert.equal(overlay.getAttribute('aria-hidden'), 'true', 'overlay has aria-hidden="true"');
         });
 
+      });
+
+      suite('restore focus', function() {
+
+        var f, btn, spy;
+        setup(function() {
+          f = fixture('restorefocus');
+          btn = f[0];
+          spy = sinon.stub();
+          document.body.addEventListener('focus', spy, true);
+        });
+
+        test('return focus to button on close', function(done) {
+          var overlay = f[1];
+          // 1st focus change
+          btn.focus();
+          // 2nd focus change
+          runAfterOpen(overlay, function() {
+            // 3rd focus change
+            runAfterClose(overlay, function() {
+              assert.equal(spy.callCount, 3, 'focus changes');
+              done();
+            });
+          });
+        });
+
+        test('return focus to button on close (ShadowDOM)', function(done) {
+          var overlay = f[2].$.overlay;
+          // 1st focus change
+          btn.focus();
+          // 2nd focus change
+          runAfterOpen(overlay, function() {
+            // 3rd focus change
+            runAfterClose(overlay, function() {
+              assert.equal(spy.callCount, 3, 'focus changes');
+              done();
+            });
+          });
+        });
       })
 
     </script>
